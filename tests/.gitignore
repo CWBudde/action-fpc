@@ -1,0 +1,16 @@
+# FPC build artifacts
+*.o
+*.ppu
+*.or
+*.res
+*.compiled
+*.a
+
+# Compiled executables
+verify-installation
+verify-lcl
+verify-lcl-simple
+
+# Linker files
+link*.res
+ppas.sh
