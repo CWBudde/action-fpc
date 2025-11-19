@@ -756,6 +756,63 @@ Contributions are welcome! Here's how you can help:
 - 🔧 **Submit fixes** - [Create a pull request](../../pulls)
 - 📖 **Improve docs** - Documentation PRs are always appreciated!
 
+### Conventional Commits
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) for automated version management and changelog generation via [release-please](https://github.com/googleapis/release-please).
+
+**Commit Message Format:**
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Types:**
+- `feat:` - A new feature (triggers minor version bump)
+- `fix:` - A bug fix (triggers patch version bump)
+- `docs:` - Documentation changes only
+- `style:` - Code style changes (formatting, semicolons, etc.)
+- `refactor:` - Code changes that neither fix bugs nor add features
+- `perf:` - Performance improvements
+- `test:` - Adding or updating tests
+- `build:` - Changes to build system or dependencies
+- `ci:` - Changes to CI configuration files and scripts
+- `chore:` - Other changes that don't modify src or test files
+- `revert:` - Reverts a previous commit
+
+**Breaking Changes:**
+Add `!` after the type or include `BREAKING CHANGE:` in the footer to trigger a major version bump.
+
+**Examples:**
+
+```bash
+# Feature addition (bumps minor version)
+git commit -m "feat: add support for FPC 3.3.x versions"
+
+# Bug fix (bumps patch version)
+git commit -m "fix: correct PATH configuration on Windows runners"
+
+# Breaking change (bumps major version)
+git commit -m "feat!: change default Lazarus version to 3.2"
+
+# With scope and body
+git commit -m "fix(windows): resolve Chocolatey timeout issues
+
+Increased timeout to 30 minutes and added retry logic
+for more reliable installations on Windows runners."
+```
+
+**Release Process:**
+
+When commits are pushed to the `main` branch:
+1. Release-please analyzes commit messages
+2. Creates/updates a release PR with changelog
+3. When the release PR is merged, a new tag and GitHub release are created automatically
+4. The major version tag (e.g., `v1`) is updated to point to the latest release
+
 ### Development
 
 ```bash
