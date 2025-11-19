@@ -73,3 +73,35 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
             ls -la C:/lazarus/ || true
           fi
+
+      - name: Test Lazarus project compilation (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          echo "==> Compiling Lazarus LCL test project..."
+          fpc -Fu/usr/lib/lazarus/3.0/lcl/units/x86_64-linux \
+              -Fu/usr/lib/lazarus/3.0/lcl/units/x86_64-linux/gtk2 \
+              -Fu/usr/lib/lazarus/3.0/components/lazutils/lib/x86_64-linux \
+              -Fi/usr/lib/lazarus/3.0/lcl/include \
+              -dLCL -dLCLgtk2 \
+              tests/verify-lcl-simple.pas
+
+          echo "==> Running verification test..."
+          ./tests/verify-lcl-simple
+          echo "✓ Lazarus LCL compilation test successful!"
+
+      - name: Test Lazarus project compilation (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          echo =^> Compiling Lazarus LCL test project...
+          fpc -FuC:\lazarus\lcl\units\x86_64-win64 ^
+              -FuC:\lazarus\lcl\units\x86_64-win64\win32 ^
+              -FuC:\lazarus\components\lazutils\lib\x86_64-win64 ^
+              -FiC:\lazarus\lcl\include ^
+              -dLCL -dLCLwin32 ^
+              tests\verify-lcl-simple.pas
+
+          echo =^> Running verification test...
+          tests\verify-lcl-simple.exe
+          echo ✓ Lazarus LCL compilation test successful!
