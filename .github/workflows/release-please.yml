@@ -1,0 +1,57 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # Type of project (options: node, simple, python, etc.)
+          release-type: simple
+
+          # Optional: Package name (defaults to repository name)
+          package-name: action-fpc
+
+          # Optional: Bump minor pre-major (default is patch)
+          bump-minor-pre-major: true
+
+          # Optional: Bump patch for minor pre-major (default is false)
+          bump-patch-for-minor-pre-major: false
+
+          # Optional: Include component in tag (useful for monorepos)
+          include-component-in-tag: false
+
+          # Optional: Default initial version
+          # bootstrap-sha: ${{ github.sha }}
+
+      # The logic below handles the v1 moving tag
+      - name: Update v1 tag
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Get the major version from the tag
+          MAJOR_VERSION=$(echo "${{ steps.release.outputs.tag_name }}" | cut -d. -f1)
+
+          # Force update the major version tag
+          git tag -fa ${MAJOR_VERSION} -m "Update ${MAJOR_VERSION} to ${{ steps.release.outputs.tag_name }}"
+          git push origin ${MAJOR_VERSION} --force
+
+      # Optional: You can add additional steps here that run when a release is created
+      # For example, building and publishing artifacts
+      - name: Announce Release
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          echo "Release ${{ steps.release.outputs.tag_name }} was created!"
+          echo "Release PR: ${{ steps.release.outputs.pr }}"
