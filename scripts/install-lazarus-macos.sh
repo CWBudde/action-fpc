@@ -42,9 +42,9 @@ UNITS="lazutilsstrconsts lazutilities graphtype graphmath lazutf8 fileutil lconv
 
 for unit in $UNITS; do
   if [ -f "$unit.pas" ]; then
-    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pas > /dev/null 2>&1 || true
+    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pas || true
   elif [ -f "$unit.pp" ]; then
-    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pp > /dev/null 2>&1 || true
+    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pp || true
   fi
 done
 
@@ -55,13 +55,43 @@ mkdir -p units/$DARWIN_ARCH
 fpc -FUunits/$DARWIN_ARCH \
   -Fuunits/$DARWIN_ARCH \
   -Fu../../components/lazutils/lib/$DARWIN_ARCH \
-  lazaruspackageintf.pas > /dev/null 2>&1 || true
+  lazaruspackageintf.pas || true
 
 # Build LCL for Cocoa
 echo "==> Building LCL for Cocoa..."
 cd /tmp/lazarus/lcl
+
+# Debug: Show environment info
+echo "    FPC compiler: $(which fpc)"
+echo "    FPC version: $(fpc -iV)"
+echo "    PWD: $(pwd)"
+
+# Check if Makefile exists
+if [ ! -f "Makefile" ]; then
+  echo "ERROR: Makefile not found in $(pwd)"
+  exit 1
+fi
+
+# Set compiler options
 export FPCOPT="-Fu/tmp/lazarus/packager/registration/units/$DARWIN_ARCH -Fu/tmp/lazarus/components/lazutils/lib/$DARWIN_ARCH"
-make LCL_PLATFORM=cocoa PP=$(which fpc) OPT="$FPCOPT" > /dev/null 2>&1
+echo "    Build options: $FPCOPT"
+
+# Build with verbose output
+if ! make LCL_PLATFORM=cocoa PP=$(which fpc) OPT="$FPCOPT"; then
+  echo ""
+  echo "ERROR: Failed to build LCL for Cocoa"
+  echo "This might be due to:"
+  echo "  - Missing Xcode command-line tools (run: xcode-select --install)"
+  echo "  - Incompatible FPC version"
+  echo "  - Build system issues"
+  echo ""
+  echo "Debug info:"
+  echo "  FPC: $(which fpc)"
+  echo "  FPC version: $(fpc -iV)"
+  echo "  Architecture: $DARWIN_ARCH"
+  echo "  Lazarus source: /tmp/lazarus"
+  exit 1
+fi
 
 # Install to system location
 echo "==> Installing to $INSTALL_DIR..."
