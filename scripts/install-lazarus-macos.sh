@@ -12,6 +12,43 @@ echo "==> Installing Lazarus LCL for macOS..."
 echo "    Version: $LAZARUS_VERSION"
 echo "    Install directory: $INSTALL_DIR"
 
+# Check for Xcode command-line tools (required for building)
+echo "==> Checking for Xcode command-line tools..."
+if ! xcode-select -p &>/dev/null; then
+  echo "    ✗ Xcode command-line tools not found"
+  echo "    Installing Xcode command-line tools..."
+  echo "    (This may take a few minutes)"
+
+  # Touch a temporary file to trigger the installation
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+
+  # Find the latest command-line tools update
+  PROD=$(softwareupdate -l 2>/dev/null | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
+
+  if [ -n "$PROD" ]; then
+    softwareupdate -i "$PROD" --verbose
+  else
+    echo "    Could not find Command Line Tools in software updates"
+    echo "    Attempting direct installation..."
+    xcode-select --install
+    echo "    Please complete the installation in the GUI and re-run this script"
+    exit 1
+  fi
+
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+
+  # Verify installation
+  if xcode-select -p &>/dev/null; then
+    echo "    ✓ Xcode command-line tools installed successfully"
+  else
+    echo "    ✗ Failed to install Xcode command-line tools"
+    echo "    Please install manually with: xcode-select --install"
+    exit 1
+  fi
+else
+  echo "    ✓ Xcode command-line tools found at: $(xcode-select -p)"
+fi
+
 # Detect architecture for proper paths
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
@@ -27,6 +64,24 @@ FPC_VERSION=$(fpc -iV)
 FPC_UNITS_DIR="$FPC_DIR/lib/fpc/$FPC_VERSION/units/$DARWIN_ARCH"
 echo "    FPC installation: $FPC_DIR"
 echo "    FPC version: $FPC_VERSION"
+
+# Verify required build tools
+echo "==> Verifying build tools..."
+MISSING_TOOLS=()
+for tool in make git; do
+  if ! command -v $tool &>/dev/null; then
+    MISSING_TOOLS+=("$tool")
+    echo "    ✗ $tool not found"
+  else
+    echo "    ✓ $tool: $(which $tool)"
+  fi
+done
+
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+  echo "    ERROR: Missing required build tools: ${MISSING_TOOLS[*]}"
+  echo "    These should be installed with Xcode command-line tools"
+  exit 1
+fi
 
 # Clone Lazarus sources from GitLab
 echo "==> Cloning Lazarus sources..."
