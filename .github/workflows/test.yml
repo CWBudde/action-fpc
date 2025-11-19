@@ -46,8 +46,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-        # Note: macOS excluded as it requires additional Lazarus build steps
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
       - name: Checkout code
@@ -105,3 +104,28 @@ jobs:
           echo =^> Running verification test...
           tests\verify-lcl-simple.exe
           echo ✓ Lazarus LCL compilation test successful!
+
+      - name: Test Lazarus project compilation (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          echo "==> Detecting macOS architecture..."
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            DARWIN_ARCH="aarch64-darwin"
+          else
+            DARWIN_ARCH="x86_64-darwin"
+          fi
+          echo "Detected architecture: $ARCH (using $DARWIN_ARCH)"
+
+          echo "==> Compiling Lazarus LCL test project..."
+          fpc -Fu/usr/local/share/lazarus/lcl/units/$DARWIN_ARCH \
+              -Fu/usr/local/share/lazarus/lcl/units/$DARWIN_ARCH/cocoa \
+              -Fu/usr/local/share/lazarus/components/lazutils/lib/$DARWIN_ARCH \
+              -Fi/usr/local/share/lazarus/lcl/include \
+              -dLCL -dLCLcocoa \
+              tests/verify-lcl-simple.pas
+
+          echo "==> Running verification test..."
+          ./tests/verify-lcl-simple
+          echo "✓ Lazarus LCL compilation test successful!"
