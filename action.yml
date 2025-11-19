@@ -104,7 +104,44 @@ runs:
           $lazarusPath = "C:\lazarus"
         } else {
           choco install freepascal -y
-          $fpcExe = "C:\FPC\3.2.2\bin\i386-win32\fpc.exe"
+
+          # Refresh environment variables after Chocolatey installation
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+          # Find FPC executable dynamically
+          $fpcExe = $null
+
+          # Try using where.exe to find fpc.exe in PATH
+          $whereFpc = where.exe fpc.exe 2>$null
+          if ($whereFpc -and (Test-Path $whereFpc[0])) {
+            $fpcExe = $whereFpc[0]
+          }
+
+          # If not found in PATH, check common Chocolatey installation paths
+          if (-not $fpcExe) {
+            $searchPaths = @(
+              "C:\tools\freepascal\*\bin\*\fpc.exe",
+              "C:\FPC\*\bin\*\fpc.exe",
+              "C:\Program Files\FPC\*\bin\*\fpc.exe"
+            )
+
+            foreach ($pattern in $searchPaths) {
+              $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) {
+                $fpcExe = $found.FullName
+                break
+              }
+            }
+          }
+
+          if (-not $fpcExe -or -not (Test-Path $fpcExe)) {
+            throw "FPC executable not found after installation. Please check Chocolatey installation logs."
+          }
+
+          # Add FPC directory to PATH
+          $fpcDir = Split-Path -Parent $fpcExe
+          echo $fpcDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
           $lazarusPath = ""
         }
 
