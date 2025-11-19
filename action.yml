@@ -207,8 +207,13 @@ runs:
           echo "::group::Installing Lazarus LCL for macOS"
 
           # Run the macOS Lazarus installation script
+          # Convert version format from 3.0.0 to lazarus_3_0 (dots to underscores, remove trailing _0)
+          LAZARUS_VERSION_TAG="lazarus_${{ inputs.lazarus-version }}"
+          LAZARUS_VERSION_TAG="${LAZARUS_VERSION_TAG//./_}"  # Replace dots with underscores
+          LAZARUS_VERSION_TAG="${LAZARUS_VERSION_TAG%_0}"    # Remove trailing _0 if present
+
           chmod +x "${{ github.action_path }}/scripts/install-lazarus-macos.sh"
-          "${{ github.action_path }}/scripts/install-lazarus-macos.sh" "lazarus_${{ inputs.lazarus-version }}" "/usr/local/share/lazarus"
+          "${{ github.action_path }}/scripts/install-lazarus-macos.sh" "$LAZARUS_VERSION_TAG" "/usr/local/share/lazarus"
 
           LAZARUS_PATH="/usr/local/share/lazarus"
           echo "lazarus-path=$LAZARUS_PATH" >> $GITHUB_OUTPUT
