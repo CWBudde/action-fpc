@@ -201,10 +201,18 @@ runs:
         echo "fpc-path=$FPC_PATH" >> $GITHUB_OUTPUT
         echo "fpc-version=$FPC_VERSION" >> $GITHUB_OUTPUT
 
-        # Note: Lazarus on macOS requires building from source (see scripts/install-lazarus-macos.sh)
+        # Install Lazarus LCL on macOS if requested
         if [ "${{ inputs.include-lazarus }}" = "true" ]; then
-          echo "::notice::Lazarus installation on macOS requires additional setup. See action documentation."
-          echo "lazarus-path=" >> $GITHUB_OUTPUT
+          echo "::endgroup::"
+          echo "::group::Installing Lazarus LCL for macOS"
+
+          # Run the macOS Lazarus installation script
+          chmod +x "${{ github.action_path }}/scripts/install-lazarus-macos.sh"
+          "${{ github.action_path }}/scripts/install-lazarus-macos.sh" "lazarus_${{ inputs.lazarus-version }}" "/usr/local/share/lazarus"
+
+          LAZARUS_PATH="/usr/local/share/lazarus"
+          echo "lazarus-path=$LAZARUS_PATH" >> $GITHUB_OUTPUT
+          echo "✓ Lazarus LCL installed at $LAZARUS_PATH"
         fi
 
         echo "::endgroup::"
