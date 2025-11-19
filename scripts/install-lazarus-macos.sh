@@ -12,6 +12,43 @@ echo "==> Installing Lazarus LCL for macOS..."
 echo "    Version: $LAZARUS_VERSION"
 echo "    Install directory: $INSTALL_DIR"
 
+# Check for Xcode command-line tools (required for building)
+echo "==> Checking for Xcode command-line tools..."
+if ! xcode-select -p &>/dev/null; then
+  echo "    ✗ Xcode command-line tools not found"
+  echo "    Installing Xcode command-line tools..."
+  echo "    (This may take a few minutes)"
+
+  # Touch a temporary file to trigger the installation
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+
+  # Find the latest command-line tools update
+  PROD=$(softwareupdate -l 2>/dev/null | grep "\*.*Command Line" | tail -n 1 | sed 's/^[^C]* //')
+
+  if [ -n "$PROD" ]; then
+    softwareupdate -i "$PROD" --verbose
+  else
+    echo "    Could not find Command Line Tools in software updates"
+    echo "    Attempting direct installation..."
+    xcode-select --install
+    echo "    Please complete the installation in the GUI and re-run this script"
+    exit 1
+  fi
+
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+
+  # Verify installation
+  if xcode-select -p &>/dev/null; then
+    echo "    ✓ Xcode command-line tools installed successfully"
+  else
+    echo "    ✗ Failed to install Xcode command-line tools"
+    echo "    Please install manually with: xcode-select --install"
+    exit 1
+  fi
+else
+  echo "    ✓ Xcode command-line tools found at: $(xcode-select -p)"
+fi
+
 # Detect architecture for proper paths
 ARCH=$(uname -m)
 if [ "$ARCH" = "arm64" ]; then
@@ -28,6 +65,24 @@ FPC_UNITS_DIR="$FPC_DIR/lib/fpc/$FPC_VERSION/units/$DARWIN_ARCH"
 echo "    FPC installation: $FPC_DIR"
 echo "    FPC version: $FPC_VERSION"
 
+# Verify required build tools
+echo "==> Verifying build tools..."
+MISSING_TOOLS=()
+for tool in make git; do
+  if ! command -v $tool &>/dev/null; then
+    MISSING_TOOLS+=("$tool")
+    echo "    ✗ $tool not found"
+  else
+    echo "    ✓ $tool: $(which $tool)"
+  fi
+done
+
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+  echo "    ERROR: Missing required build tools: ${MISSING_TOOLS[*]}"
+  echo "    These should be installed with Xcode command-line tools"
+  exit 1
+fi
+
 # Clone Lazarus sources from GitLab
 echo "==> Cloning Lazarus sources..."
 git clone --depth 1 --branch "$LAZARUS_VERSION" https://gitlab.com/freepascal.org/lazarus/lazarus.git /tmp/lazarus
@@ -42,9 +97,9 @@ UNITS="lazutilsstrconsts lazutilities graphtype graphmath lazutf8 fileutil lconv
 
 for unit in $UNITS; do
   if [ -f "$unit.pas" ]; then
-    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pas > /dev/null 2>&1 || true
+    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pas || true
   elif [ -f "$unit.pp" ]; then
-    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pp > /dev/null 2>&1 || true
+    fpc -FUlib/$DARWIN_ARCH -Fulib/$DARWIN_ARCH $unit.pp || true
   fi
 done
 
@@ -55,13 +110,43 @@ mkdir -p units/$DARWIN_ARCH
 fpc -FUunits/$DARWIN_ARCH \
   -Fuunits/$DARWIN_ARCH \
   -Fu../../components/lazutils/lib/$DARWIN_ARCH \
-  lazaruspackageintf.pas > /dev/null 2>&1 || true
+  lazaruspackageintf.pas || true
 
 # Build LCL for Cocoa
 echo "==> Building LCL for Cocoa..."
 cd /tmp/lazarus/lcl
+
+# Debug: Show environment info
+echo "    FPC compiler: $(which fpc)"
+echo "    FPC version: $(fpc -iV)"
+echo "    PWD: $(pwd)"
+
+# Check if Makefile exists
+if [ ! -f "Makefile" ]; then
+  echo "ERROR: Makefile not found in $(pwd)"
+  exit 1
+fi
+
+# Set compiler options
 export FPCOPT="-Fu/tmp/lazarus/packager/registration/units/$DARWIN_ARCH -Fu/tmp/lazarus/components/lazutils/lib/$DARWIN_ARCH"
-make LCL_PLATFORM=cocoa PP=$(which fpc) OPT="$FPCOPT" > /dev/null 2>&1
+echo "    Build options: $FPCOPT"
+
+# Build with verbose output
+if ! make LCL_PLATFORM=cocoa PP=$(which fpc) OPT="$FPCOPT"; then
+  echo ""
+  echo "ERROR: Failed to build LCL for Cocoa"
+  echo "This might be due to:"
+  echo "  - Missing Xcode command-line tools (run: xcode-select --install)"
+  echo "  - Incompatible FPC version"
+  echo "  - Build system issues"
+  echo ""
+  echo "Debug info:"
+  echo "  FPC: $(which fpc)"
+  echo "  FPC version: $(fpc -iV)"
+  echo "  Architecture: $DARWIN_ARCH"
+  echo "  Lazarus source: /tmp/lazarus"
+  exit 1
+fi
 
 # Install to system location
 echo "==> Installing to $INSTALL_DIR..."
