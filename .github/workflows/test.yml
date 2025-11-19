@@ -1,0 +1,75 @@
+name: Test Action
+
+on:
+  push:
+    branches: [ main, master, develop, claude/** ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test-fpc-only:
+    name: Test FPC-only installation on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup FPC
+        uses: ./
+        with:
+          include-lazarus: false
+
+      - name: Verify FPC installation
+        shell: bash
+        run: |
+          fpc -iV
+          echo "FPC installation successful!"
+
+      - name: Test simple compilation
+        shell: bash
+        run: |
+          cat > test.pas << 'EOF'
+          program Test;
+          begin
+            writeln('Hello from FPC!');
+          end.
+          EOF
+          fpc test.pas
+          echo "Compilation successful!"
+
+  test-with-lazarus:
+    name: Test FPC + Lazarus on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        # Note: macOS excluded as it requires additional Lazarus build steps
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup FPC and Lazarus
+        uses: ./
+        with:
+          lazarus-version: '3.0.0'
+
+      - name: Verify FPC installation
+        shell: bash
+        run: |
+          fpc -iV
+          echo "FPC + Lazarus installation successful!"
+
+      - name: Display installation paths
+        shell: bash
+        run: |
+          echo "FPC binary: $(which fpc)"
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            ls -la /usr/lib/lazarus/3.0/ || true
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            ls -la C:/lazarus/ || true
+          fi

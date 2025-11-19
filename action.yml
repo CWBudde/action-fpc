@@ -1,0 +1,178 @@
+name: 'Setup Free Pascal Compiler'
+description: 'Install and configure Free Pascal Compiler (FPC) and Lazarus on Linux, Windows, and macOS'
+author: 'Christian-W. Budde'
+
+branding:
+  icon: 'code'
+  color: 'blue'
+
+inputs:
+  lazarus-version:
+    description: 'Lazarus version to install (e.g., 3.0.0)'
+    required: false
+    default: '3.0.0'
+
+  fpc-version:
+    description: 'FPC version to install (e.g., 3.2.2). If not specified, uses the version bundled with Lazarus'
+    required: false
+    default: ''
+
+  include-lazarus:
+    description: 'Whether to install Lazarus (includes LCL). Set to false for FPC-only installations.'
+    required: false
+    default: 'true'
+
+  install-dependencies:
+    description: 'Additional dependencies to install (space-separated). Example: "libportaudio2 portaudio19-dev"'
+    required: false
+    default: ''
+
+  cache:
+    description: 'Enable caching of FPC/Lazarus installation to speed up subsequent runs'
+    required: false
+    default: 'true'
+
+outputs:
+  fpc-path:
+    description: 'Path to the FPC compiler executable'
+    value: ${{ steps.setup.outputs.fpc-path }}
+
+  fpc-version:
+    description: 'Installed FPC version'
+    value: ${{ steps.setup.outputs.fpc-version }}
+
+  lazarus-path:
+    description: 'Path to the Lazarus installation directory'
+    value: ${{ steps.setup.outputs.lazarus-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup FPC/Lazarus on Linux
+      if: runner.os == 'Linux'
+      id: setup-linux
+      shell: bash
+      run: |
+        echo "::group::Installing FPC and Lazarus on Linux"
+
+        sudo apt-get update
+        sudo apt-get install -y fpc
+
+        if [ "${{ inputs.include-lazarus }}" = "true" ]; then
+          sudo apt-get install -y lazarus lcl-gtk2-3.0 lcl-units-3.0
+        fi
+
+        # Install additional dependencies if specified
+        if [ -n "${{ inputs.install-dependencies }}" ]; then
+          echo "Installing additional dependencies: ${{ inputs.install-dependencies }}"
+          sudo apt-get install -y ${{ inputs.install-dependencies }}
+        fi
+
+        FPC_PATH=$(which fpc)
+        FPC_VERSION=$(fpc -iV)
+
+        echo "fpc-path=$FPC_PATH" >> $GITHUB_OUTPUT
+        echo "fpc-version=$FPC_VERSION" >> $GITHUB_OUTPUT
+
+        if [ "${{ inputs.include-lazarus }}" = "true" ]; then
+          echo "lazarus-path=/usr/lib/lazarus/3.0" >> $GITHUB_OUTPUT
+        fi
+
+        echo "::endgroup::"
+        echo "✓ FPC $FPC_VERSION installed successfully at $FPC_PATH"
+
+    - name: Setup FPC/Lazarus on Windows
+      if: runner.os == 'Windows'
+      id: setup-windows
+      shell: pwsh
+      run: |
+        Write-Host "::group::Installing FPC and Lazarus on Windows"
+
+        if ("${{ inputs.include-lazarus }}" -eq "true") {
+          choco install lazarus --version=${{ inputs.lazarus-version }} -y
+
+          # Add FPC to PATH
+          $fpcPath = "C:\lazarus\fpc\3.2.2\bin\x86_64-win64"
+          if (Test-Path $fpcPath) {
+            echo $fpcPath | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+          # Wait a moment for PATH update
+          Start-Sleep -Seconds 2
+
+          $fpcExe = "C:\lazarus\fpc\3.2.2\bin\x86_64-win64\fpc.exe"
+          $lazarusPath = "C:\lazarus"
+        } else {
+          choco install freepascal -y
+          $fpcExe = "C:\FPC\3.2.2\bin\i386-win32\fpc.exe"
+          $lazarusPath = ""
+        }
+
+        # Verify FPC installation
+        & $fpcExe -iV | Out-Null
+        $fpcVersion = & $fpcExe -iV
+
+        echo "fpc-path=$fpcExe" >> $env:GITHUB_OUTPUT
+        echo "fpc-version=$fpcVersion" >> $env:GITHUB_OUTPUT
+
+        if ("${{ inputs.include-lazarus }}" -eq "true") {
+          echo "lazarus-path=$lazarusPath" >> $env:GITHUB_OUTPUT
+        }
+
+        Write-Host "::endgroup::"
+        Write-Host "✓ FPC $fpcVersion installed successfully"
+
+    - name: Setup FPC/Lazarus on macOS
+      if: runner.os == 'macOS'
+      id: setup-macos
+      shell: bash
+      run: |
+        echo "::group::Installing FPC on macOS"
+
+        brew install fpc
+
+        # Install additional dependencies if specified
+        if [ -n "${{ inputs.install-dependencies }}" ]; then
+          echo "Installing additional dependencies: ${{ inputs.install-dependencies }}"
+          brew install ${{ inputs.install-dependencies }}
+        fi
+
+        FPC_PATH=$(which fpc)
+        FPC_VERSION=$(fpc -iV)
+
+        echo "fpc-path=$FPC_PATH" >> $GITHUB_OUTPUT
+        echo "fpc-version=$FPC_VERSION" >> $GITHUB_OUTPUT
+
+        # Note: Lazarus on macOS requires building from source (see scripts/install-lazarus-macos.sh)
+        if [ "${{ inputs.include-lazarus }}" = "true" ]; then
+          echo "::notice::Lazarus installation on macOS requires additional setup. See action documentation."
+          echo "lazarus-path=" >> $GITHUB_OUTPUT
+        fi
+
+        echo "::endgroup::"
+        echo "✓ FPC $FPC_VERSION installed successfully at $FPC_PATH"
+
+    - name: Display FPC version
+      shell: bash
+      run: |
+        echo "::group::FPC Installation Summary"
+        fpc -i
+        echo "::endgroup::"
+
+    - name: Set output for composite action
+      id: setup
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Linux" ]; then
+          echo "fpc-path=${{ steps.setup-linux.outputs.fpc-path }}" >> $GITHUB_OUTPUT
+          echo "fpc-version=${{ steps.setup-linux.outputs.fpc-version }}" >> $GITHUB_OUTPUT
+          echo "lazarus-path=${{ steps.setup-linux.outputs.lazarus-path }}" >> $GITHUB_OUTPUT
+        elif [ "${{ runner.os }}" = "Windows" ]; then
+          echo "fpc-path=${{ steps.setup-windows.outputs.fpc-path }}" >> $GITHUB_OUTPUT
+          echo "fpc-version=${{ steps.setup-windows.outputs.fpc-version }}" >> $GITHUB_OUTPUT
+          echo "lazarus-path=${{ steps.setup-windows.outputs.lazarus-path }}" >> $GITHUB_OUTPUT
+        elif [ "${{ runner.os }}" = "macOS" ]; then
+          echo "fpc-path=${{ steps.setup-macos.outputs.fpc-path }}" >> $GITHUB_OUTPUT
+          echo "fpc-version=${{ steps.setup-macos.outputs.fpc-version }}" >> $GITHUB_OUTPUT
+          echo "lazarus-path=${{ steps.setup-macos.outputs.lazarus-path }}" >> $GITHUB_OUTPUT
+        fi

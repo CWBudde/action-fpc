@@ -1,0 +1,23 @@
+# Compiled files
+*.o
+*.ppu
+*.compiled
+*.rst
+*.rsj
+*.lps
+*.bak
+*.~*
+
+# Executables
+*.exe
+*.app
+*.dSYM/
+
+# IDE files
+backup/
+lib/
+*.lpi.bak
+
+# OS files
+.DS_Store
+Thumbs.db
