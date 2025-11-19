@@ -112,29 +112,50 @@ runs:
           $fpcExe = $null
 
           # Try using where.exe to find fpc.exe in PATH
+          Write-Host "Searching for fpc.exe in PATH..."
           $whereFpc = where.exe fpc.exe 2>$null
           if ($whereFpc -and (Test-Path $whereFpc[0])) {
             $fpcExe = $whereFpc[0]
+            Write-Host "Found fpc.exe in PATH: $fpcExe"
           }
 
-          # If not found in PATH, check common Chocolatey installation paths
+          # If not found in PATH, search common installation directories
           if (-not $fpcExe) {
-            $searchPaths = @(
-              "C:\tools\freepascal\*\bin\*\fpc.exe",
-              "C:\FPC\*\bin\*\fpc.exe",
-              "C:\Program Files\FPC\*\bin\*\fpc.exe"
+            Write-Host "Not found in PATH, searching installation directories..."
+
+            $searchRoots = @(
+              "C:\tools\freepascal",
+              "C:\FPC",
+              "C:\Program Files\FPC"
             )
 
-            foreach ($pattern in $searchPaths) {
-              $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($found) {
-                $fpcExe = $found.FullName
-                break
+            foreach ($root in $searchRoots) {
+              if (Test-Path $root) {
+                Write-Host "Searching in: $root"
+                # Search recursively for fpc.exe with a depth limit
+                $found = Get-ChildItem -Path $root -Filter "fpc.exe" -Recurse -ErrorAction SilentlyContinue -Depth 3 | Select-Object -First 1
+                if ($found) {
+                  $fpcExe = $found.FullName
+                  Write-Host "Found fpc.exe at: $fpcExe"
+                  break
+                }
               }
             }
           }
 
           if (-not $fpcExe -or -not (Test-Path $fpcExe)) {
+            Write-Host "::error::FPC executable not found after installation."
+            Write-Host "::group::Debug Information"
+            Write-Host "Searched locations:"
+            Write-Host "  - PATH environment variable"
+            Write-Host "  - C:\tools\freepascal (and subdirectories)"
+            Write-Host "  - C:\FPC (and subdirectories)"
+            Write-Host "  - C:\Program Files\FPC (and subdirectories)"
+            if (Test-Path "C:\tools\freepascal") {
+              Write-Host "`nContents of C:\tools\freepascal:"
+              Get-ChildItem -Path "C:\tools\freepascal" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 50 | Format-Table FullName
+            }
+            Write-Host "::endgroup::"
             throw "FPC executable not found after installation. Please check Chocolatey installation logs."
           }
 
