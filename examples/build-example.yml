@@ -1,0 +1,108 @@
+# Example workflow for building a Free Pascal project
+# Copy this to your repository's .github/workflows/ directory
+
+name: Build
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  build-linux:
+    name: Build on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup FPC and Lazarus
+        uses: cwbudde/action-fpc@v1
+        with:
+          lazarus-version: '3.0.0'
+          # Add your Linux dependencies here
+          install-dependencies: 'libportaudio2 portaudio19-dev'
+
+      - name: Display FPC version
+        run: fpc -iV
+
+      - name: Build project
+        run: |
+          # Replace with your actual build commands
+          fpc -Fu./Source \
+              -Fu/usr/lib/lazarus/3.0/lcl/units/x86_64-linux \
+              -Fu/usr/lib/lazarus/3.0/lcl/units/x86_64-linux/gtk2 \
+              -Fu/usr/lib/lazarus/3.0/components/lazutils/lib/x86_64-linux \
+              -Fi/usr/lib/lazarus/3.0/lcl/include \
+              -dLCL -dLCLgtk2 \
+              MyProject.dpr
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: linux-binary
+          path: MyProject
+          retention-days: 7
+
+  build-windows:
+    name: Build on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup FPC and Lazarus
+        uses: cwbudde/action-fpc@v1
+        with:
+          lazarus-version: '3.0.0'
+
+      - name: Display FPC version
+        run: fpc -iV
+        shell: cmd
+
+      - name: Build project
+        run: |
+          fpc -Fu.\Source -FuC:\lazarus\lcl\units\x86_64-win64 -FuC:\lazarus\lcl\units\x86_64-win64\win32 -FuC:\lazarus\components\lazutils\lib\x86_64-win64 -FiC:\lazarus\lcl\include -dLCL -dLCLwin32 MyProject.dpr
+        shell: cmd
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: windows-binary
+          path: MyProject.exe
+          retention-days: 7
+
+  build-macos:
+    name: Build on macOS
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup FPC
+        uses: cwbudde/action-fpc@v1
+        with:
+          # Add your macOS dependencies here
+          install-dependencies: 'portaudio'
+
+      - name: Display FPC version
+        run: fpc -iV
+
+      - name: Build project
+        run: |
+          # For console applications (no LCL)
+          fpc -Fu./Source MyProject.dpr
+
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: macos-binary
+          path: MyProject
+          retention-days: 7
