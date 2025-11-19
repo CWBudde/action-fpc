@@ -206,13 +206,13 @@ print_success "Package lists updated"
 
 # Install FPC
 print_section "Installing Free Pascal Compiler"
-execute_cmd "$SUDO apt-get install -y fpc" "Installing FPC..."
+execute_cmd "$SUDO apt-get install -y --fix-missing fpc" "Installing FPC..."
 print_success "FPC installed"
 
 # Install Lazarus if requested
 if [ "$INCLUDE_LAZARUS" = "true" ]; then
     print_section "Installing Lazarus"
-    execute_cmd "$SUDO apt-get install -y lazarus lcl-gtk2-3.0 lcl-units-3.0" "Installing Lazarus and LCL components..."
+    execute_cmd "$SUDO apt-get install -y --fix-missing lazarus lcl-gtk2-3.0 lcl-units-3.0" "Installing Lazarus and LCL components..."
     print_success "Lazarus installed"
 fi
 
@@ -220,7 +220,7 @@ fi
 if [ -n "$INSTALL_DEPENDENCIES" ]; then
     print_section "Installing Additional Dependencies"
     print_info "Installing: $INSTALL_DEPENDENCIES"
-    execute_cmd "$SUDO apt-get install -y $INSTALL_DEPENDENCIES" "Installing additional dependencies..."
+    execute_cmd "$SUDO apt-get install -y --fix-missing $INSTALL_DEPENDENCIES" "Installing additional dependencies..."
     print_success "Additional dependencies installed"
 fi
 
